@@ -1894,15 +1894,34 @@ process.chdir = function (dir) {
 };
 
 },{}],11:[function(require,module,exports){
+var cs2a = require("./cs2a.js");
+var ecc = require("ecc-jsbn");
+require("./forge.min.js"); // PITA not browserify compat
+cs2a.crypt(ecc,forge);
+
+Object.keys(cs2a).forEach(function(f){ exports[f] = cs2a[f]; });
+
+
+},{"./cs2a.js":12,"./forge.min.js":13,"ecc-jsbn":14}],12:[function(require,module,exports){
 (function (Buffer){
 var crypto = require("crypto");
-var cs2a = require("./cs2a.js");
+var sjcl = require("sjcl");
 
-var ecc = require("ecc-jsbn");  
-require("./forge.min.js"); // PITA not browserify compat
-cs2a.crypt(ecc);
+var self;
+exports.install = function(telehash)
+{
+  self = telehash;
+  telehash.CSets["2a"] = exports;
+}
 
-cs2a.genkey = function(ret,cbDone,cbStep)
+var forge;
+exports.crypt = function(ecc,f)
+{
+  crypto.ecc = ecc;
+  forge = f;
+}
+
+exports.genkey = function(ret,cbDone,cbStep)
 {
 	var state = forge.rsa.createKeyPairGenerationState(2048, 0x10001);
 	var step = function() {
@@ -1923,7 +1942,7 @@ cs2a.genkey = function(ret,cbDone,cbStep)
 	setTimeout(step);  
 }
 
-cs2a.loadkey = function(id, pub, priv)
+exports.loadkey = function(id, pub, priv)
 {
   // take pki or ber format
   if(pub.length > 300)
@@ -1952,27 +1971,6 @@ cs2a.loadkey = function(id, pub, priv)
     };
   }
   return false;
-}
-
-Object.keys(cs2a).forEach(function(f){ exports[f] = cs2a[f]; });
-
-
-}).call(this,require("buffer").Buffer)
-},{"./cs2a.js":12,"./forge.min.js":13,"buffer":1,"crypto":5,"ecc-jsbn":14}],12:[function(require,module,exports){
-(function (Buffer){
-var crypto = require("crypto");
-var sjcl = require("sjcl");
-
-var self;
-exports.install = function(telehash)
-{
-  self = telehash;
-  telehash.CSets["2a"] = exports;
-}
-
-exports.crypt = function(ecc)
-{
-  crypto.ecc = ecc;
 }
 
 exports.openize = function(id, to, inner)

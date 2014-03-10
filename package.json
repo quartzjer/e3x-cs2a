@@ -5,7 +5,8 @@
   "main": "node.js",
   "dependencies": {
     "ecc-jsbn": "0.0.x",
-    "sjcl": "1.0.x"
+    "sjcl": "1.0.x",
+    "node-forge": "0.2.x"
   },
   "optionalDependencies": {
     "ursa": "git+https://github.com/quartzjer/ursa.git",
