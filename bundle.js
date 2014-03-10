@@ -1943,7 +1943,9 @@ cs2a.loadkey = function(id, pub, priv)
   {
     var sk = (priv.substr(0,1) == "-") ? forge.pki.privateKeyFromPem(priv) :  forge.pki.privateKeyFromAsn1(forge.asn1.fromDer(forge.util.decode64(priv)));
     id.sign = function(buf){
-      return new Buffer(sk.sign(buf.toString("binary")),"binary");
+    	var md = forge.md.sha256.create();
+    	md.update(buf.toString("binary"));
+      return new Buffer(sk.sign(md),"binary");
     };
     id.decrypt = function(buf){
       return new Buffer(sk.decrypt(buf.toString("binary"), "RSA-OAEP"),"binary");
@@ -1968,19 +1970,18 @@ exports.install = function(telehash)
   telehash.CSets["2a"] = exports;
 }
 
-exports.crypt = function(ecc,aes)
+exports.crypt = function(ecc)
 {
   crypto.ecc = ecc;
-  crypto.aes = aes;
 }
 
 exports.openize = function(id, to, inner)
 {
-	if(!to.ecc) to.ecc = new ecc.ECKey(ecc.ECCurves.nistp256);
+	if(!to.ecc) to.ecc = new crypto.ecc.ECKey(crypto.ecc.ECCurves.secp256r1);
   var eccpub = to.ecc.PublicKey.slice(1);
 
 	// encrypt the body
-	var ibody = pencode(inner, id.cs["2a"].key);
+	var ibody = self.pencode(inner, id.cs["2a"].key);
   var keyhex = crypto.createHash("sha256").update(eccpub).digest("hex");
   var key = new sjcl.cipher.aes(sjcl.codec.hex.toBits(keyhex));
   var iv = sjcl.codec.hex.toBits("00000000000000000000000000000001");
@@ -1999,7 +2000,7 @@ exports.openize = function(id, to, inner)
 
   var body = Buffer.concat([ekey,csig,cbody]);    
   //	console.log(open, body.length);
-	var packet = pencode(0x2a, body);
+	var packet = self.pencode(0x2a, body);
 	return packet;
 }
 
@@ -2015,7 +2016,7 @@ exports.deopenize = function(id, open)
   var eccpub = id.cs["2a"].decrypt(ekey);
   if(!eccpub) return ret;
   try {
-    ret.linepub = new ecc.ECKey(ecc.ECCurves.nistp256, Buffer.concat([new Buffer("04","hex"),eccpub]), true);
+    ret.linepub = new crypto.ecc.ECKey(crypto.ecc.ECCurves.secp256r1, Buffer.concat([new Buffer("04","hex"),eccpub]), true);
   }catch(E){};
   if(!ret.linepub) return ret;
 
@@ -2025,7 +2026,7 @@ exports.deopenize = function(id, open)
   var iv = sjcl.codec.hex.toBits("00000000000000000000000000000001");
   var cipher = sjcl.mode.gcm.decrypt(key, sjcl.codec.hex.toBits(cbody.toString("hex")), iv, [], 128);
   var ibody = new Buffer(sjcl.codec.hex.fromBits(cipher), "hex");
-  var deciphered = pdecode(ibody);
+  var deciphered = self.pdecode(ibody);
   if(!deciphered || !deciphered.body) return ret;
   ret.js = deciphered.js;
   ret.key = deciphered.body;
@@ -2068,14 +2069,14 @@ exports.openline = function(from, open)
 exports.lineize = function(to, packet)
 {
   var iv = crypto.randomBytes(16);
-  var buf = pencode(packet.js,packet.body);
+  var buf = self.pencode(packet.js,packet.body);
 
 	// now encrypt the packet
   var cipher = sjcl.mode.gcm.encrypt(to.encKey, sjcl.codec.hex.toBits(buf.toString("hex")), sjcl.codec.hex.toBits(iv.toString("hex")), [], 128);
   var cbody = new Buffer(sjcl.codec.hex.fromBits(cipher),"hex");
 
   var body = Buffer.concat([to.lineInB,iv,cbody]);
-	return pencode(null,body);
+	return self.pencode(null,body);
 },
 
 exports.delineize = function(from, packet)
@@ -2091,7 +2092,7 @@ exports.delineize = function(from, packet)
     return E;
   }
   if(!cipher) return "no cipher output";
-  var deciphered = pdecode(new Buffer(sjcl.codec.hex.fromBits(cipher),"hex"));
+  var deciphered = self.pdecode(new Buffer(sjcl.codec.hex.fromBits(cipher),"hex"));
 	if(!deciphered) return "invalid decrypted packet";
 
   packet.js = deciphered.js;
@@ -3988,10 +3989,10 @@ cs.genkey(a,function(){
   console.log("genkey",a);
   cs.genkey(b,function(){
     console.log("genkey",b);
-    var id = {cs:{"1a":{}}};[]
-    cs.loadkey(id.cs["1a"],a["1a"],a["1a_secret"]);
-    var to = {};
-    cs.loadkey(to,b["1a"]);
+    var id = {cs:{"2a":{}}};
+    cs.loadkey(id.cs["2a"],a["2a"],a["2a_secret"]);
+    var to = {lineOut:"00"};
+    cs.loadkey(to,b["2a"]);
     console.log(id,to);
     var open = cs.openize(id,to,{});
     console.log("opened",open);

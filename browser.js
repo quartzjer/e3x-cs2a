@@ -46,7 +46,9 @@ cs2a.loadkey = function(id, pub, priv)
   {
     var sk = (priv.substr(0,1) == "-") ? forge.pki.privateKeyFromPem(priv) :  forge.pki.privateKeyFromAsn1(forge.asn1.fromDer(forge.util.decode64(priv)));
     id.sign = function(buf){
-      return new Buffer(sk.sign(buf.toString("binary")),"binary");
+    	var md = forge.md.sha256.create();
+    	md.update(buf.toString("binary"));
+      return new Buffer(sk.sign(md),"binary");
     };
     id.decrypt = function(buf){
       return new Buffer(sk.decrypt(buf.toString("binary"), "RSA-OAEP"),"binary");
