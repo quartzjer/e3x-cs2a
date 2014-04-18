@@ -73,7 +73,7 @@ exports.openize = function(id, to, inner)
   var eccpub = to.ecc.PublicKey.slice(1);
 
 	// encrypt the body
-	var ibody = self.pencode(inner, id.cs["2a"].key);
+  var ibody = (!Buffer.isBuffer(inner)) ? self.pencode(inner,id.cs["2a"].key) : inner;
   var keyhex = crypto.createHash("sha256").update(eccpub).digest("hex");
   var key = new sjcl.cipher.aes(sjcl.codec.hex.toBits(keyhex));
   var iv = sjcl.codec.hex.toBits("00000000000000000000000000000001");
@@ -82,6 +82,7 @@ exports.openize = function(id, to, inner)
 
 	// sign & encrypt the sig
   var sig = id.cs["2a"].sign(cbody);
+  if(!to.lineOut) to.lineOut = ""; // no lines for tickets
   var keyhex = crypto.createHash("sha256").update(Buffer.concat([eccpub,new Buffer(to.lineOut,"hex")])).digest("hex");
   var key = new sjcl.cipher.aes(sjcl.codec.hex.toBits(keyhex));
   var cipher = sjcl.mode.gcm.encrypt(key, sjcl.codec.hex.toBits(sig.toString("hex")), iv, [], 32);
@@ -121,14 +122,23 @@ exports.deopenize = function(id, open)
   var deciphered = self.pdecode(ibody);
   if(!deciphered || !deciphered.body) return ret;
   ret.js = deciphered.js;
-  ret.key = deciphered.body;
-
-  // extract attached public key
-	var from = {};
-  if(exports.loadkey(from,deciphered.body)) return ret;
+  ret.inner = deciphered;
+  
+  var from = {};
+  var lineIn;
+  if(!open.from)
+  {
+    // extract attached public key
+    ret.key = deciphered.body;
+    if(exports.loadkey(from,deciphered.body)) return ret;
+    lineIn = deciphered.js.line;
+  }else{
+    from = open.from;
+    lineIn = "";
+  }
 
   // decrypt signature
-  var keyhex = crypto.createHash("sha256").update(Buffer.concat([eccpub,new Buffer(deciphered.js.line,"hex")])).digest("hex");
+  var keyhex = crypto.createHash("sha256").update(Buffer.concat([eccpub,new Buffer(lineIn,"hex")])).digest("hex");
   var key = new sjcl.cipher.aes(sjcl.codec.hex.toBits(keyhex));
   var cipher = sjcl.mode.gcm.decrypt(key, sjcl.codec.hex.toBits(csig.toString("hex")), iv, [], 32);
   var sig = new Buffer(sjcl.codec.hex.fromBits(cipher), "hex");
