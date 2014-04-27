@@ -1,6 +1,6 @@
 {
   "name": "telehash-cs2a",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "CipherSet 2a for telehash",
   "main": "node.js",
   "dependencies": {

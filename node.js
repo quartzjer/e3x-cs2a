@@ -24,7 +24,6 @@ if(ursa)
     var kpair = ursa.generatePrivateKey();
     ret["2a"] = str2der(kpair.toPublicPem("utf8")).toString("base64");
     ret["2a_secret"] = str2der(kpair.toPrivatePem("utf8")).toString("base64");
-    ret.parts["2a"] = crypto.createHash("SHA256").update(str2der(kpair.toPublicPem("utf8"))).digest("hex");
     cbDone();
   }
 

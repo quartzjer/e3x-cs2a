@@ -27,9 +27,6 @@ exports.genkey = function(ret,cbDone,cbStep)
       var key = forge.asn1.toDer(forge.pki.publicKeyToAsn1(state.keys.publicKey)).bytes();
       ret["2a"] = forge.util.encode64(key);
       ret["2a_secret"] = forge.util.encode64(forge.asn1.toDer(forge.pki.privateKeyToAsn1(state.keys.privateKey)).bytes());
-      var md = forge.md.sha256.create();
-      md.update(key);
-      ret.parts["2a"] = md.digest().toHex();
       cbDone();
 	  }
 	}
