@@ -28,28 +28,21 @@ exports.generate = function(cb, cbStep)
   setTimeout(step);  
 }
 
-exports.loadkey = function(id, pub, priv)
+exports.loadkey = function(id, key, secret)
 {
-  // take pki or ber format
-  if(pub.length > 300)
-  {
-    if(pub.substr(0,1) == "-") pub = forge.asn1.toDer(forge.pki.publicKeyToAsn1(forge.pki.publicKeyFromPem(key))).bytes();
-    else pub = forge.util.decode64(pub);
-  }
-  id.key = pub;
-  var pk = forge.pki.publicKeyFromAsn1(forge.asn1.fromDer(pub));    
+  var pk = forge.pki.publicKeyFromAsn1(forge.asn1.fromDer(key.toString("binary")));    
   id.encrypt = function(buf){
     return new Buffer(pk.encrypt(buf.toString("binary"), "RSA-OAEP"), "binary");
   };
   id.verify = function(a,b){
     return pk.verify(a.toString("binary"), b.toString("binary"));
   };
-  if(priv)
+  if(secret)
   {
-    var sk = (priv.substr(0,1) == "-") ? forge.pki.privateKeyFromPem(priv) :  forge.pki.privateKeyFromAsn1(forge.asn1.fromDer(forge.util.decode64(priv)));
+    var sk = forge.pki.privateKeyFromAsn1(forge.asn1.fromDer(secret.toString("binary")));
     id.sign = function(buf){
-    	var md = forge.md.sha256.create();
-    	md.update(buf.toString("binary"));
+      var md = forge.md.sha256.create();
+      md.update(buf.toString("binary"));
       return new Buffer(sk.sign(md),"binary");
     };
     id.decrypt = function(buf){
@@ -199,10 +192,7 @@ exports.Local = function(pair)
 {
   var self = this;
   try{
-    self.key = new crypto.ecc.ECKey(crypto.ecc.ECCurves.secp160r1, pair.key, true);
-    self.secret = new crypto.ecc.ECKey(crypto.ecc.ECCurves.secp160r1, pair.secret);
-    if(self.key.PublicKey.toString() != pair.key.toString()) throw new Error('invalid public key data');
-    if(self.secret.PrivateKey.toString() != pair.secret.toString()) throw new Error('invalid secret key data');
+    self.err = exports.loadkey(self,pair.key,pair.secret);
   }catch(E){
     self.err = E;
   }
@@ -211,7 +201,7 @@ exports.Local = function(pair)
   self.decrypt = function(body){
     if(!Buffer.isBuffer(body)) return false;
     if(body.length < 21+4+4) return false;
-
+/*
     var keybuf = body.slice(0,21);
     var iv = body.slice(21,21+4);
     var innerc = body.slice(21+4,body.length-4);
@@ -234,8 +224,8 @@ exports.Local = function(pair)
     }catch(E){
       return false;
     }
-    
-    return inner;
+    */
+    return undefined;
   };
 }
 
@@ -243,10 +233,11 @@ exports.Remote = function(key)
 {
   var self = this;
   try{
-    self.endpoint = new crypto.ecc.ECKey(crypto.ecc.ECCurves.secp160r1, key, true);
-    self.ephemeral = new crypto.ecc.ECKey(crypto.ecc.ECCurves.secp160r1);
-    self.token = crypto.createHash('sha256').update(self.ephemeral.PublicKey.slice(0,16)).digest().slice(0,16);
-    self.seq = crypto.randomBytes(4).readUInt32LE(0); // start from random place
+    self.err = exports.loadkey(self,key);
+//    self.endpoint = new crypto.ecc.ECKey(crypto.ecc.ECCurves.secp160r1, key, true);
+//    self.ephemeral = new crypto.ecc.ECKey(crypto.ecc.ECCurves.secp160r1);
+//    self.token = crypto.createHash('sha256').update(self.ephemeral.PublicKey.slice(0,16)).digest().slice(0,16);
+//    self.seq = crypto.randomBytes(4).readUInt32LE(0); // start from random place
   }catch(E){
     self.err = E;
   }
@@ -254,9 +245,9 @@ exports.Remote = function(key)
   // verifies the hmac on an incoming message body
   self.verify = function(local, body){
     if(!Buffer.isBuffer(body)) return false;
-
+/*
     // derive shared secret from both identity keys
-    var secret = local.secret.deriveSharedSecret(self.endpoint);
+   var secret = local.secret.deriveSharedSecret(self.endpoint);
 
     // hmac key is the secret and seq bytes combined to make it unique each time
     var iv = body.slice(21,21+4);
@@ -264,11 +255,12 @@ exports.Remote = function(key)
     if(mac.toString('hex') != body.slice(body.length-4).toString('hex')) return false;
     
     return true;
+    */
   };
 
   self.encrypt = function(local, inner){
     if(!Buffer.isBuffer(inner)) return false;
-
+/*
     // get the shared secret to create the iv+key for the open aes
     try{
       var secret = self.ephemeral.deriveSharedSecret(self.endpoint);
@@ -296,6 +288,7 @@ exports.Remote = function(key)
 
     // create final message body
     return Buffer.concat([macd,hmac]);
+    */
   };
 
 }
@@ -303,7 +296,8 @@ exports.Remote = function(key)
 exports.Ephemeral = function(remote, body)
 {
   var self = this;
-  
+
+/*  
   self.seq = crypto.randomBytes(4).readUInt32LE(0); // start from random place
 
   try{
@@ -328,8 +322,9 @@ exports.Ephemeral = function(remote, body)
   }catch(E){
     self.err = E;
   }
-
+*/
   self.decrypt = function(outer){
+    /*
     // extract the three buffers
     var seq = outer.slice(0,4);
     var cbody = outer.slice(4,outer.length-4);
@@ -349,10 +344,12 @@ exports.Ephemeral = function(remote, body)
       return false;
     }
     return body;
+    */
   };
 
   self.encrypt = function(inner){
     // now encrypt the packet
+    /*
     var iv = new Buffer(16);
     iv.fill(0);
     iv.writeUInt32LE(self.seq++,0);
@@ -365,6 +362,7 @@ exports.Ephemeral = function(remote, body)
 
     // return final body
     return Buffer.concat([iv.slice(0,4),cbody,mac]);
+    */
   };
 }
 

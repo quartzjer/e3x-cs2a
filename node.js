@@ -35,12 +35,9 @@ if(ursa)
     cb(null,{key:key,secret:secret});
   }
 
-  exports.loadkey = function(id, pub, priv)
+  exports.loadkey = function(id, key, secret)
   {  
-    // take pki or ber format
-    if(typeof pub == "string") pub = str2der(pub);
-    id.key = pub;
-    var pk = ursa.coercePublicKey(der2pem(pub,"PUBLIC"));
+    var pk = ursa.coercePublicKey(der2pem(key,"PUBLIC"));
     if(!pk) return true;
     if(pk.getModulus().length != 256) return true;
     id.encrypt = function(buf){
@@ -49,10 +46,9 @@ if(ursa)
     id.verify = function(a,b){
       return pk.hashAndVerify("sha256", a, b, undefined, ursa.RSA_PKCS1_PADDING);
     };
-    if(priv)
+    if(secret)
     {
-      if(typeof priv == "string") priv = str2der(priv);
-      var sk = ursa.coercePrivateKey(der2pem(priv,"RSA PRIVATE"));
+      var sk = ursa.coercePrivateKey(der2pem(secret,"RSA PRIVATE"));
       id.sign = function(buf){
         return sk.hashAndSign("sha256", buf, undefined, undefined, ursa.RSA_PKCS1_PADDING);
       };
@@ -60,7 +56,7 @@ if(ursa)
         return sk.decrypt(buf, undefined, undefined, ursa.RSA_PKCS1_OAEP_PADDING);
       };
     }
-    return false;
+    return undefined;
   }  
 }
 
