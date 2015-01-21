@@ -1,33 +1,41 @@
+var crypto = require("crypto");
+
+// load common module
+exports = module.exports = require('./cs2a.js');
+
 // prefer compiled versions
 
 try {
+  if(process.env.PURE == 'true') throw new Error("pure requested");
   var ecc = require("ecc");
 }catch(E){
   var ecc = require("ecc-jsbn")
 }
 
 try {
+  if(process.env.PURE == 'true') throw new Error("pure requested");
   var ursa = require("ursa");
 }catch(E){
   var forge = require("node-forge");
+  // feed some local entropy into it
+  forge.random.collect(crypto.randomBytes(2048).toString('binary'));
 }
 
-var crypto = require("crypto");
-var cs2a = require("./cs2a.js");
-cs2a.crypt(ecc,forge);
+// load node-specific crypto methods
+exports.crypt(ecc,forge);
 
 // replace these when compiled ursa works and forge won't be used
 if(ursa)
 {
-  cs2a.genkey = function(ret,cbDone,cbStep)
+  exports.generate = function(cb)
   {
     var kpair = ursa.generatePrivateKey();
-    ret["2a"] = str2der(kpair.toPublicPem("utf8")).toString("base64");
-    ret["2a_secret"] = str2der(kpair.toPrivatePem("utf8")).toString("base64");
-    cbDone();
+    var key = str2der(kpair.toPublicPem("utf8"));
+    var secret = str2der(kpair.toPrivatePem("utf8"));
+    cb(null,{key:key,secret:secret});
   }
 
-  cs2a.loadkey = function(id, pub, priv)
+  exports.loadkey = function(id, pub, priv)
   {  
     // take pki or ber format
     if(typeof pub == "string") pub = str2der(pub);
@@ -55,8 +63,6 @@ if(ursa)
     return false;
   }  
 }
-
-Object.keys(cs2a).forEach(function(f){ exports[f] = cs2a[f];});
 
 // ursa is not very flexible!
 

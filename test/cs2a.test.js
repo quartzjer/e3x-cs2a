@@ -23,10 +23,10 @@ describe('cs2a', function(){
       expect(err).to.not.exist;
       expect(pair).to.be.a('object');
       expect(Buffer.isBuffer(pair.key)).to.be.equal(true);
-      expect(pair.key.length).to.be.equal(32);
+      expect(pair.key.length).to.be.equal(294);
       expect(Buffer.isBuffer(pair.secret)).to.be.equal(true);
-      expect(pair.secret.length).to.be.equal(32);
-//      console.log("KEY",pair.key.toString('hex'),"SECRET",pair.secret.toString('hex'));
+      expect(pair.secret.length).to.be.above(1100);
+      console.log("KEY",pair.key.toString('hex'),"SECRET",pair.secret.toString('hex'));
       done(err);
     });
   });
