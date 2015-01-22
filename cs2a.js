@@ -287,76 +287,61 @@ exports.Remote = function(key)
 
 }
 
-exports.Ephemeral = function(remote, body)
+exports.Ephemeral = function(remote, outer, inner)
 {
   var self = this;
+  
+  try {
+    // get the ecc key from cached or decrypted
+    var keys = remote.cached || (inner && inner._keys);
 
-/*  
-  self.seq = crypto.randomBytes(4).readUInt32LE(0); // start from random place
+    // do the ecdh thing
+    var ecc = new crypto.ecc.ECKey(crypto.ecc.ECCurves.secp256r1, keys.slice(0,65), true);
+    var ecdhe = remote.ephemeral.deriveSharedSecret(ecc);
 
-  try{
-    // sender token
-    self.token = crypto.createHash('sha256').update(body.slice(0,16)).digest().slice(0,16);
-
-    // extract received ephemeral key
-    var key = new crypto.ecc.ECKey(crypto.ecc.ECCurves.secp160r1, body.slice(0,21), true);
-
-    // get shared secret to make channel keys
-    var secret = remote.ephemeral.deriveSharedSecret(key);
-    self.encKey = fold(1,crypto.createHash("sha256")
+    // use the other two secrets too
+    var secret = keys.slice(65);
+    var hex = crypto.createHash("sha256")
+      .update(ecdhe)
+      .update(remote.secret)
       .update(secret)
-      .update(remote.ephemeral.PublicKey)
-      .update(key.PublicKey)
-      .digest());
-    self.decKey = fold(1,crypto.createHash("sha256")
+      .digest("hex");
+    self.encKey = new sjcl.cipher.aes(sjcl.codec.hex.toBits(hex));
+    var hex = crypto.createHash("sha256")
+      .update(ecdhe)
       .update(secret)
-      .update(key.PublicKey)
-      .update(remote.ephemeral.PublicKey)
-      .digest());
+      .update(remote.secret)
+      .digest("hex");
+    self.decKey = new sjcl.cipher.aes(sjcl.codec.hex.toBits(hex));
+    
+    self.token = crypto.createHash('sha256').update(outer.slice(0,16)).digest().slice(0,16);
+    
   }catch(E){
     self.err = E;
   }
-*/
+  
+
   self.decrypt = function(outer){
-    /*
-    // extract the three buffers
-    var seq = outer.slice(0,4);
-    var cbody = outer.slice(4,outer.length-4);
-    var mac1 = outer.slice(outer.length-4);
 
-    // validate the hmac
-    var key = Buffer.concat([self.decKey,seq]);
-    var mac2 = fold(3,crypto.createHmac("sha256", key).update(cbody).digest());
-    if(mac1.toString('hex') != mac2.toString('hex')) return false;
-
-    // decrypt body
-    var ivz = new Buffer(12);
-    ivz.fill(0);
     try{
-      var body = crypto.aes(false,self.decKey,Buffer.concat([seq,ivz]),cbody);
+      var ivhex = sjcl.codec.hex.toBits(outer.slice(0,16).toString("hex"));
+      var cipher = sjcl.mode.gcm.decrypt(self.decKey, sjcl.codec.hex.toBits(outer.slice(16).toString("hex")), ivhex, [], 128);
+      var inner = new Buffer(sjcl.codec.hex.fromBits(cipher),"hex");
     }catch(E){
-      return false;
+      self.err = E;
     }
-    return body;
-    */
+    
+    return inner;
   };
 
   self.encrypt = function(inner){
     // now encrypt the packet
-    /*
-    var iv = new Buffer(16);
-    iv.fill(0);
-    iv.writeUInt32LE(self.seq++,0);
 
-    var cbody = crypto.aes(true, self.encKey, iv, inner);
+    var iv = crypto.randomBytes(16);
+    var cipher = sjcl.mode.gcm.encrypt(self.encKey, sjcl.codec.hex.toBits(inner.toString("hex")), sjcl.codec.hex.toBits(iv.toString("hex")), [], 128);
+    var cbody = new Buffer(sjcl.codec.hex.fromBits(cipher),"hex");
 
-    // create the hmac
-    var key = Buffer.concat([self.encKey,iv.slice(0,4)]);
-    var mac = fold(3,crypto.createHmac("sha256", key).update(cbody).digest());
-
-    // return final body
-    return Buffer.concat([iv.slice(0,4),cbody,mac]);
-    */
+    return Buffer.concat([iv,cbody]);
   };
 }
 
