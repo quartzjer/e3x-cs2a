@@ -112,14 +112,12 @@ exports.Remote = function(key)
   self.verify = function(local, body){
     if(!Buffer.isBuffer(body)) return false;
 
-    console.log("XXX");
     // decrypt it first
     var inner = local.decrypt(body);
     if(!inner) return false;
-    console.log("XXX");
+
     // verify the rsa signature
     if(!self.key.verify(Buffer.concat([body.slice(0,256+12),inner]), inner._sig)) return false;
-    console.log("XXX");
     
     // cache the decrypted keys
     self.cached = inner._keys;
