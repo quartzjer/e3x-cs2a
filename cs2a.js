@@ -191,8 +191,9 @@ exports.delineize = function(from, packet)
 exports.Local = function(pair)
 {
   var self = this;
+  self.key = {}
   try{
-    self.err = exports.loadkey(self,pair.key,pair.secret);
+    self.err = exports.loadkey(self.key,pair.key,pair.secret);
   }catch(E){
     self.err = E;
   }
@@ -200,32 +201,27 @@ exports.Local = function(pair)
   // decrypt message body and return the inner
   self.decrypt = function(body){
     if(!Buffer.isBuffer(body)) return false;
-    if(body.length < 21+4+4) return false;
-/*
-    var keybuf = body.slice(0,21);
-    var iv = body.slice(21,21+4);
-    var innerc = body.slice(21+4,body.length-4);
-    // mac is handled during verify stage
+    if(body.length < 256+12+256+16) return false;
 
-    try{
-      var ephemeral = new crypto.ecc.ECKey(crypto.ecc.ECCurves.secp160r1, keybuf, true);
-      var secret = self.secret.deriveSharedSecret(ephemeral);
-    }catch(E){
-      return false;
-    }
+    // rsa decrypt the keys
+    var keys = self.key.decrypt(body.slice(0,256));
+    if(!keys || keys.length != (65+32)) return false;
 
-    var key = fold(1,crypto.createHash("sha256").update(secret).digest());
-    var ivz = new Buffer(12);
-    ivz.fill(0);
+    // aes decrypt the inner
+    var keyhex = keys.slice(65,65+32).toString('hex');
+    var ivhex = body.slice(256,256+12).toString('hex');
+    var aadhex = body.slice(0,256+12).toString('hex');
+    var cbodyhex = body.slice(256+12).toString('hex');
 
-    // aes-128 decipher the inner
-    try{
-      var inner = crypto.aes(false, key, Buffer.concat([iv,ivz]), innerc);
-    }catch(E){
-      return false;
-    }
-    */
-    return undefined;
+    var key = new sjcl.cipher.aes(sjcl.codec.hex.toBits(keyhex));
+    var iv = sjcl.codec.hex.toBits(ivhex);
+    var aad = sjcl.codec.hex.toBits(aadhex);
+    var cbody = sjcl.codec.hex.toBits(cbodyhex);
+    var cipher = sjcl.mode.gcm.decrypt(key, cbody, iv, aad, 128);
+    var body = new Buffer(sjcl.codec.hex.fromBits(cipher), 'hex');
+    
+    // return minus signature
+    return body.slice(0,body.length-256);
   };
 }
 
