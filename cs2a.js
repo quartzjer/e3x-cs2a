@@ -220,40 +220,45 @@ exports.Local = function(pair)
     var cipher = sjcl.mode.gcm.decrypt(key, cbody, iv, aad, 128);
     var body = new Buffer(sjcl.codec.hex.fromBits(cipher), 'hex');
     
-    // return minus signature
-    return body.slice(0,body.length-256);
+    // return buf of just the inner, add decrypted sig/keys
+    var ret = body.slice(0,body.length-256);
+    ret._keys = keys;
+    ret._sig = body.slice(ret.length);
+
+    return ret;
   };
 }
 
 exports.Remote = function(key)
 {
   var self = this;
+  self.key = {};
   try{
-    self.err = exports.loadkey(self,key);
+    self.err = exports.loadkey(self.key,key);
     self.ephemeral = new crypto.ecc.ECKey(crypto.ecc.ECCurves.secp256r1);
     self.secret = crypto.randomBytes(32);
     self.iv = crypto.randomBytes(12);
-    self.keys = self.encrypt(Buffer.concat([self.ephemeral.PublicKey,self.secret]));
+    self.keys = self.key.encrypt(Buffer.concat([self.ephemeral.PublicKey,self.secret]));
     self.token = crypto.createHash('sha256').update(self.keys.slice(0,16)).digest().slice(0,16);
   }catch(E){
     self.err = E;
   }
 
-  // verifies the hmac on an incoming message body
+  // verifies the authenticity of an incoming message body
   self.verify = function(local, body){
     if(!Buffer.isBuffer(body)) return false;
-    // decrypt it first
-/*
-    // derive shared secret from both identity keys
-   var secret = local.secret.deriveSharedSecret(self.endpoint);
 
-    // hmac key is the secret and seq bytes combined to make it unique each time
-    var iv = body.slice(21,21+4);
-    var mac = fold(3,crypto.createHmac("sha256", Buffer.concat([secret,iv])).update(body.slice(0,body.length-4)).digest());
-    if(mac.toString('hex') != body.slice(body.length-4).toString('hex')) return false;
+    // decrypt it first
+    var inner = local.decrypt(body);
+    if(!inner) return false;
+    
+    // verify the rsa signature
+    if(!self.key.verify(Buffer.concat([body.slice(0,256+12),inner]), inner._sig)) return false;
+    
+    // cache the decrypted keys
+    self.cached = inner._keys;
     
     return true;
-    */
   };
 
   self.encrypt = function(local, inner){
@@ -265,7 +270,7 @@ exports.Remote = function(key)
     self.iv.writeUInt32LE(seq,0);
 
     // generate the signature
-    var sig = local.sign(Buffer.concat([self.keys,self.iv,inner]));
+    var sig = local.key.sign(Buffer.concat([self.keys,self.iv,inner]));
 
     // aes gcm encrypt the inner+sig
     var aad = Buffer.concat([self.keys,self.iv]);
