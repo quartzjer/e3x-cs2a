@@ -11,21 +11,14 @@ exports.crypt = function(ecc,f)
   forge = f;
 }
 
-exports.generate = function(cb, cbStep)
+exports.generate = function(cb)
 {
-  var state = forge.rsa.createKeyPairGenerationState(2048, 0x10001);
-  var step = function() {
-    // run for 100 ms
-    if(!forge.rsa.stepKeyPairGenerationState(state, 100)) {
-      if(cbStep) cbStep();
-      setTimeout(step, 10);
-    } else {
-      var key = forge.asn1.toDer(forge.pki.publicKeyToAsn1(state.keys.publicKey)).bytes();
-      var secret = forge.asn1.toDer(forge.pki.privateKeyToAsn1(state.keys.privateKey)).bytes();
-      cb(null, {key:new Buffer(key, 'binary'), secret:new Buffer(secret, 'binary')});
-    }
-  }
-  setTimeout(step);  
+  forge.rsa.generateKeyPair({bits: 2048, e: 0x10001, workers: -1}, function(err, keys){
+    if(err) return cb(err);
+    var key = forge.asn1.toDer(forge.pki.publicKeyToAsn1(keys.publicKey)).bytes();
+    var secret = forge.asn1.toDer(forge.pki.privateKeyToAsn1(keys.privateKey)).bytes();
+    cb(null, {key:new Buffer(key, 'binary'), secret:new Buffer(secret, 'binary')});
+  });
 }
 
 exports.loadkey = function(id, key, secret)
@@ -35,7 +28,9 @@ exports.loadkey = function(id, key, secret)
     return new Buffer(pk.encrypt(buf.toString("binary"), "RSA-OAEP"), "binary");
   };
   id.verify = function(a,b){
-    return pk.verify(a.toString("binary"), b.toString("binary"));
+    var md = forge.md.sha256.create();
+    md.update(a.toString("binary"));
+    return pk.verify(md.digest().bytes(), b.toString("binary"));
   };
   if(secret)
   {

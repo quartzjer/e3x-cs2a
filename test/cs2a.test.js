@@ -72,7 +72,7 @@ describe('cs2a', function(){
     var message = remote.encrypt(local, new Buffer('0000','hex'));
     expect(Buffer.isBuffer(message)).to.be.equal(true);
     expect(message.length).to.be.equal(542);
-    console.log("mbodyAB",message.toString('hex'));
+//    console.log("mbodyAB",message.toString('hex'));
   });
 
   it('should remote encrypt', function(){
@@ -81,7 +81,7 @@ describe('cs2a', function(){
     var message = remote.encrypt(local, new Buffer('0000','hex'));
     expect(Buffer.isBuffer(message)).to.be.equal(true);
     expect(message.length).to.be.equal(542);
-    console.log("mbodyBA",message.toString('hex'));
+//    console.log("mbodyBA",message.toString('hex'));
   });
 
   it('should remote verify', function(){
