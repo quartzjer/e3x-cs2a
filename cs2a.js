@@ -5,9 +5,10 @@ exports.id = '2a';
 
 // env-specific crypto methods
 var forge;
+var cecc;
 exports.crypt = function(ecc,f)
 {
-  crypto.ecc = ecc;
+  cecc = ecc;
   forge = f;
 }
 
@@ -94,7 +95,7 @@ exports.Remote = function(key)
   self.key = {};
   try{
     self.err = exports.loadkey(self.key,key);
-    self.ephemeral = new crypto.ecc.ECKey(crypto.ecc.ECCurves.secp256r1);
+    self.ephemeral = new cecc.ECKey(cecc.ECCurves.secp256r1);
     self.secret = crypto.randomBytes(32);
     self.iv = crypto.randomBytes(12);
     self.keys = self.key.encrypt(Buffer.concat([self.ephemeral.PublicKey,self.secret]));
@@ -102,6 +103,7 @@ exports.Remote = function(key)
   }catch(E){
     self.err = E;
   }
+  if(self.err) console.log("ERR",self.err,key.toString("hex"))
 
   // verifies the authenticity of an incoming message body
   self.verify = function(local, body){
@@ -155,7 +157,7 @@ exports.Ephemeral = function(remote, outer, inner)
     var keys = remote.cached || (inner && inner._keys);
 
     // do the ecdh thing
-    var ecc = new crypto.ecc.ECKey(crypto.ecc.ECCurves.secp256r1, keys.slice(0,65), true);
+    var ecc = new cecc.ECKey(cecc.ECCurves.secp256r1, keys.slice(0,65), true);
     var ecdhe = remote.ephemeral.deriveSharedSecret(ecc);
 
     // use the other two secrets too
