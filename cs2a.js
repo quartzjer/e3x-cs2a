@@ -70,7 +70,7 @@ exports.Local = function(pair)
     // aes decrypt the inner
     var keyhex = keys.slice(65,65+32).toString('hex');
     var ivhex = body.slice(256,256+12).toString('hex');
-    var aadhex = body.slice(0,256+12).toString('hex');
+    var aadhex = body.slice(0,256).toString('hex');
     var cbodyhex = body.slice(256+12).toString('hex');
 
     var key = new sjcl.cipher.aes(sjcl.codec.hex.toBits(keyhex));
@@ -134,7 +134,7 @@ exports.Remote = function(key)
     var sig = local.key.sign(Buffer.concat([self.keys,self.iv,inner]));
 
     // aes gcm encrypt the inner+sig
-    var aad = Buffer.concat([self.keys,self.iv]);
+    var aad = self.keys;
     var body = Buffer.concat([inner,sig]);
     var key = new sjcl.cipher.aes(sjcl.codec.hex.toBits(self.secret.toString('hex')));
     var iv = sjcl.codec.hex.toBits(self.iv.toString('hex'));
