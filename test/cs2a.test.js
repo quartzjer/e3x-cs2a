@@ -125,7 +125,7 @@ describe('cs2a', function(){
     var ephemeral = new cs2a.Ephemeral(remote, mbodyBA);
     var channel = ephemeral.encrypt(new Buffer('0000','hex'));
     expect(Buffer.isBuffer(channel)).to.be.equal(true);
-    expect(channel.length).to.be.equal(34);
+    expect(channel.length).to.be.equal(30);
   });
 
   it('ephemeral full', function(){

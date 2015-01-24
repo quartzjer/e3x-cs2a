@@ -177,6 +177,8 @@ exports.Ephemeral = function(remote, outer, inner)
     
     self.token = crypto.createHash('sha256').update(outer.slice(0,16)).digest().slice(0,16);
     
+    self.iv = crypto.randomBytes(12);
+    
   }catch(E){
     self.err = E;
   }
@@ -185,8 +187,8 @@ exports.Ephemeral = function(remote, outer, inner)
   self.decrypt = function(outer){
 
     try{
-      var ivhex = sjcl.codec.hex.toBits(outer.slice(0,16).toString("hex"));
-      var cipher = sjcl.mode.gcm.decrypt(self.decKey, sjcl.codec.hex.toBits(outer.slice(16).toString("hex")), ivhex, [], 128);
+      var ivhex = sjcl.codec.hex.toBits(outer.slice(0,12).toString("hex"));
+      var cipher = sjcl.mode.gcm.decrypt(self.decKey, sjcl.codec.hex.toBits(outer.slice(12).toString("hex")), ivhex, [], 128);
       var inner = new Buffer(sjcl.codec.hex.fromBits(cipher),"hex");
     }catch(E){
       self.err = E;
@@ -196,13 +198,17 @@ exports.Ephemeral = function(remote, outer, inner)
   };
 
   self.encrypt = function(inner){
-    // now encrypt the packet
 
-    var iv = crypto.randomBytes(16);
-    var cipher = sjcl.mode.gcm.encrypt(self.encKey, sjcl.codec.hex.toBits(inner.toString("hex")), sjcl.codec.hex.toBits(iv.toString("hex")), [], 128);
+    // increment the IV
+    var seq = self.iv.readUInt32LE(0);
+    seq++;
+    self.iv.writeUInt32LE(seq,0);
+
+    // now encrypt the packet
+    var cipher = sjcl.mode.gcm.encrypt(self.encKey, sjcl.codec.hex.toBits(inner.toString("hex")), sjcl.codec.hex.toBits(self.iv.toString("hex")), [], 128);
     var cbody = new Buffer(sjcl.codec.hex.fromBits(cipher),"hex");
 
-    return Buffer.concat([iv,cbody]);
+    return Buffer.concat([self.iv,cbody]);
   };
 }
 
