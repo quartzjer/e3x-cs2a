@@ -14,12 +14,13 @@ exports.crypt = function(ecc,f)
 
 exports.generate = function(cb)
 {
-  forge.rsa.generateKeyPair({bits: 2048, e: 0x10001, workers: -1}, function(err, keys){
-    if(err) return cb(err);
-    var key = forge.asn1.toDer(forge.pki.publicKeyToAsn1(keys.publicKey)).bytes();
-    var secret = forge.asn1.toDer(forge.pki.privateKeyToAsn1(keys.privateKey)).bytes();
-    cb(null, {key:new Buffer(key, 'binary'), secret:new Buffer(secret, 'binary')});
-  });
+  // disable web-workers for now, not browserify compatible
+//  forge.rsa.generateKeyPair({bits: 2048, e: 0x10001, workers: -1}, function(err, keys){
+  var keys = forge.rsa.generateKeyPair({bits: 2048, e: 0x10001});
+  if(!keys) return cb("failed to generate rsa keys");
+  var key = forge.asn1.toDer(forge.pki.publicKeyToAsn1(keys.publicKey)).bytes();
+  var secret = forge.asn1.toDer(forge.pki.privateKeyToAsn1(keys.privateKey)).bytes();
+  cb(null, {key:new Buffer(key, 'binary'), secret:new Buffer(secret, 'binary')});
 }
 
 exports.loadkey = function(id, key, secret)
