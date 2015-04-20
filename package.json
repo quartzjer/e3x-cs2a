@@ -1,6 +1,6 @@
 {
   "name": "e3x-cs2a",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "CS2a - e3x cipher set",
   "main": "node.js",
   "dependencies": {
@@ -16,10 +16,10 @@
     "chai": "*",
     "mocha": "*"
   },
-    "scripts": {
+  "scripts": {
     "test": "make test"
   },
-  "browserify":"./browser.js",
+  "browserify": "./browser.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/quartzjer/e3x-cs2a.git"
