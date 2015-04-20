@@ -45,13 +45,13 @@ if(ursa)
       return pk.encrypt(buf, undefined, undefined, ursa.RSA_PKCS1_OAEP_PADDING);
     };
     id.verify = function(a,b){
-      return pk.hashAndVerify("sha256", a, b, undefined, ursa.RSA_PKCS1_PADDING);
+      return pk.hashAndVerify("sha256", a, b);
     };
     if(secret)
     {
       var sk = ursa.coercePrivateKey(der2pem(secret,"RSA PRIVATE"));
       id.sign = function(buf){
-        return sk.hashAndSign("sha256", buf, undefined, undefined, ursa.RSA_PKCS1_PADDING);
+        return sk.hashAndSign("sha256", buf);
       };
       id.decrypt = function(buf){
         return sk.decrypt(buf, undefined, undefined, ursa.RSA_PKCS1_OAEP_PADDING);
